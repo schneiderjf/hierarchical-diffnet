@@ -1,3 +1,6 @@
+import matplotlib.pyplot as plt
+import networkx as nx
+import time
 import itertools
 
 def transform_full_to_sparse(data):
