@@ -65,9 +65,15 @@ class Preprocessing():
         data = data.drop(['<Url>', '<UrlTy>', '<Fq>', 'Unnamed: 0', '<Tm>'],
                          axis=1)
         data = data[data['diff'].notnull()]
-        data.columns = ['cascade_id', 'node_id', 'sec_till_start']
+        data.columns = ['cascade_id', 'node_id', 'hours_till_start']
+        data['hours_till_start'] = data['hours_till_start'] / 3600
+        data = data.sort_values('hours_till_start')
+        data = data.drop_duplicates(['cascade_id', 'node_id'])
+        data['hours_till_start'] = data.groupby('cascade_id')[
+            'hours_till_start'].transform(
+            lambda x: (x - min(x)))
 
         self.data = data
         self.labels = labels
 
-        return data
+        return None
