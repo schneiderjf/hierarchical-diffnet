@@ -49,17 +49,29 @@ class GenerativeModel():
             potential_transmission_stack = tf.stack([transmission,potential_transmission_row],axis=0)
 
             # Take the minimum of the original transmission and the potential new transmission
-            transmission = tf.reduce_min(potential_transmission_stack, reduction_indices=[0])
+            transmission = tf.reduce_min(potential_transmission_stack, reduction_indices=[0])cas
 
         cascade = sess.run(transmission)
 
         return cascade
 
-    def build_cascade_series(self, seeds):
+    def build_cascade_series(self, seeds, T=None):
+        """
+
+        :param seeds:
+        :param T:
+        :return:
+        """
         l = []
-        for t in tqdm(range(len(seeds))):
-            cascade = self.build_cascade(t)
-            l.append(cascade)
+        if T:
+            for t in tqdm(range(len(seeds))):
+                cascade = self.build_cascade(seeds[t], T[t])
+                l.append(cascade)
+        else:
+            for t in tqdm(range(len(seeds))):
+                cascade = self.build_cascade(seeds[t])
+                l.append(cascade)
+
         cascades = np.vstack(l)
         return cascades
 
