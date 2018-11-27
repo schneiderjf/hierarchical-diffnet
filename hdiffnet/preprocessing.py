@@ -4,19 +4,18 @@ import re
 
 # Define functions
 def get_nodename(x):
-    try:
-        matchobj1 = re.search('://(.*?)/', str(x))
+    matchobj1 = re.search('://(.*?)/', str(x))
+    if matchobj1:
         return matchobj1.group(1)
-    except:
+    else:
         return None
 
 
 def filter_data(x):
-    try:
-        matchobj1 = re.match('2008-', str(x))
-        matchobj1.group(0)
-        return x
-    except:
+    matchobj1 = re.match('2008-', str(x))
+    if matchobj1:
+        return matchobj1.group(0)
+    else:
         return None
 
 
@@ -31,7 +30,6 @@ class Preprocessing():
                                 skiprows=3)
         self.labels = None
 
-
     def preprocess_data(self, num_nodes):
         """
         transforms and cleans the data, so it is in a format that can be used
@@ -44,8 +42,10 @@ class Preprocessing():
         # fill na
         data = data.fillna(method='ffill')
         # filter out top nodes and replace with an id:
-        nodes = data[data['<UrlTy>'] == 'M'].groupby('node').count().sort_values(
-            ascending=False, by='<Url>').reset_index()
+        nodes = data[data['<UrlTy>'] == 'M'].\
+            groupby('node').count().\
+            sort_values(ascending=False, by='<Url>').\
+            reset_index()
         news = nodes.head(num_nodes).node.values
         data = data[data.node.isin(news[1:])]
         labels = dict()
