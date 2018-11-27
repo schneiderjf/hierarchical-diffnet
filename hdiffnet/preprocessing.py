@@ -19,12 +19,37 @@ def filter_data(x):
         return None
 
 
-def assign_content_cluster(x):
-    pass
+def get_polarity(x):
+    """
+    :param x:
+    :return:
+    """
+    x = str(x).lower()
+    words_politics = ['obama', 'biden', 'joe biden', 'white house', 'congress',
+                      'election', 'administration', 'democrat', 'replublican',
+                      'democracy',
+                      'congressman', 'senat', 'senator', 'household',
+                      'midterm', 'supreme court',
+                      'politic']
+    words_sports = ['baseball', 'field goal', 'football', 'NFL', 'basketball',
+                    'player', 'sports',
+                    'trainer', 'coach', 'ball']
+
+    for s in words_politics:
+        matchobj1 = re.search('(' + str(s) + '?)', x)
+        if matchobj1:
+            return 0
+    for s in words_sports:
+        matchobj1 = re.search('(' + str(s) + '?)', x)
+        if matchobj1:
+            return 1
+    else:
+        return None
 
 
 class Preprocessing():
     def __init__(self, path):
+        self.path = path
         self.data = pd.read_csv(path,
                                 delimiter='\t',
                                 skiprows=3)
@@ -37,14 +62,20 @@ class Preprocessing():
         :return: pd.df of the cleaned data
         """
         data = self.data
-        # parse url
+        data['cluster_id'] = None
+        data['cascade_id'] = None
+        data = data.drop(['Unnamed: 0', 'Unnamed: 1'], axis=1)
         data['node'] = data['<Url>'].apply(lambda x: get_nodename(x))
-        # fill na
-        data = data.fillna(method='ffill')
-        # filter out top nodes and replace with an id:
-        nodes = data[data['<UrlTy>'] == 'M'].\
-            groupby('node').count().\
-            sort_values(ascending=False, by='<Url>').\
+        data['cluster_id'] = data[['<Fq>', '<UrlTy>', '<Url>']].apply(
+            lambda x: get_cluster_id(x), axis=1)
+        data['cascade_id'] = data[['<Fq>', '<UrlTy>', '<Url>']].apply(
+            lambda x: get_cascade_id(x), axis=1)
+
+        data['cluster_id'] = data['cluster_id'].fillna(method='ffill')
+        data['cascade_id'] = data['cascade_id'].fillna(method='ffill')
+        nodes = data[data['<UrlTy>'] == 'M']. \
+            groupby('node').count(). \
+            sort_values(ascending=False, by='<Url>'). \
             reset_index()
         news = nodes.head(num_nodes).node.values
         data = data[data.node.isin(news[1:])]
@@ -55,25 +86,50 @@ class Preprocessing():
             labels[i] = j
             j += 1
         data['node'] = data['node'].replace(labels)
-
-        # filter data and type transformation, calculate the value
-        data['<Tm>'] = data['<Tm>'].apply(lambda x: filter_data(x))
         data['<Tm>'] = pd.to_datetime(data['<Tm>'])
-        data['diff'] = data.groupby('Unnamed: 1')['<Tm>'].transform(
+        data['t'] = data.groupby('cascade_id')['<Tm>'].transform(
             lambda x: (x - min(x)))
-        data['diff'] = data['diff'].apply(lambda x: x.total_seconds())
-        data = data.drop(['<Url>', '<UrlTy>', '<Fq>', 'Unnamed: 0', '<Tm>'],
+        data['t'] = data['diff'].apply(lambda x: x.total_seconds())
+        data = data.drop(['<Url>', '<UrlTy>', '<Fq>', '<Tm>'],
                          axis=1)
-        data = data[data['diff'].notnull()]
-        data.columns = ['cascade_id', 'node_id', 'hours_till_start']
-        data['hours_till_start'] = data['hours_till_start'] / 3600
-        data = data.sort_values('hours_till_start')
-        data = data.drop_duplicates(['cascade_id', 'node_id'])
-        data['hours_till_start'] = data.groupby('cascade_id')[
-            'hours_till_start'].transform(
-            lambda x: (x - min(x)))
+        data = data.drop_duplicates(['cascade_id', 'node'])
+        data['t'] = data['t'] / 3600
+        data = data.groupby('cascade_id').filter(lambda x: len(x) > 4)
+        data = data.sort_values('t')
 
         self.data = data
         self.labels = labels
+        self.cascade_ids = data.cascade_id.unique()
 
         return None
+
+    def add_polarity(self):
+        data = pd.read_csv(self.path,
+                           delimiter='\t', skiprows=3)
+        v = self.cascade_ids
+
+        data['cluster_id'] = None
+        data['cascade_id'] = None
+        data = data.drop(['Unnamed: 0', 'Unnamed: 1'], axis=1)
+        data['node'] = data['<Url>'].apply(lambda x: get_nodename(x))
+        data['cluster_id'] = data[['<Fq>', '<UrlTy>', '<Url>']].apply(
+            lambda x: get_cluster_id(x), axis=1)
+        data['cascade_id'] = data[['<Fq>', '<UrlTy>', '<Url>']].apply(
+            lambda x: get_cascade_id(x), axis=1)
+
+        data['cluster_id'] = data['cluster_id'].fillna(method='ffill')
+        data['cascade_id'] = data['cascade_id'].fillna(method='ffill')
+
+        words = data[data.cascade_id.isin(v) & data['<Url>'].isna()]
+        bofw = words.groupby('cluster_id')['<Fq>'].apply(lambda x: " ".join(x))
+        clusters = bofw.apply(lambda x: get_polarity(x)).dropna()
+        data = data[data.cluster_id.isin(clusters.index)]
+        data['polarity'] = data.cluster_id.astype(str).replace(
+            clusters.to_dict())
+        data.dropna()
+
+        self.data = data
+
+        return None
+
+
