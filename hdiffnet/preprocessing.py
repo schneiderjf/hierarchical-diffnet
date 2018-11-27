@@ -19,6 +19,19 @@ def filter_data(x):
         return None
 
 
+def get_cluster_id(a):
+    if str(a[1]) == 'nan' and str(a[2]) == 'nan':
+        return a[0]
+    else:
+        return None
+
+
+def get_cascade_id(a):
+    if not (str(a[1]) == 'nan') and str(a[2]) == 'nan':
+        return a[1]
+    else:
+        return None
+
 def get_polarity(x):
     """
     :param x:
@@ -123,6 +136,8 @@ class Preprocessing():
         words = data[data.cascade_id.isin(v) & data['<Url>'].isna()]
         bofw = words.groupby('cluster_id')['<Fq>'].apply(lambda x: " ".join(x))
         clusters = bofw.apply(lambda x: get_polarity(x)).dropna()
+
+        data = self.data
         data = data[data.cluster_id.isin(clusters.index)]
         data['polarity'] = data.cluster_id.astype(str).replace(
             clusters.to_dict())
