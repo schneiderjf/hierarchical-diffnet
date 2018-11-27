@@ -1,7 +1,8 @@
 import tensorflow as tf
 import numpy as np
-from edward.models import Exponential
-import edward as ed
+
+from tensorflow_probability import edward2 as ed
+
 from tqdm import tqdm
 
 
@@ -21,7 +22,7 @@ class GenerativeModel():
         if not(alpha):
             alpha = self.alpha
 
-        time = Exponential(alpha)
+        time = ed.Exponential(alpha)
 
         n = time.shape[0]
 
@@ -77,3 +78,40 @@ class GenerativeModel():
 
         cascades = np.vstack(result)
         return cascades
+
+    def build_topic_cascade(self, T, n):
+        """
+
+        :param T:
+        :param n: number of cascades to be drawn
+        :return:
+        """
+        alpha = self.alpha
+        alpha_tf = tf.convert_to_tensor(alpha, dtype=tf.float32)
+        nodes = alpha.shape[1]
+
+        np_topics = np.zeros((n, 2))
+
+        cascade = []
+        for i in tqdm(range(n)):
+            topic_pos = random.randint(0, 1)
+            np_topics[i, topic_pos] = 1
+
+            tau = ed.Exponential(tf.gather(alpha_tf, indices=topic_pos))
+            seed = random.randint(0, nodes - 1)
+
+            tmpCascade = sess.run(build_cascade(tau, seed, T))
+
+            order = tmpCascade.argsort()
+            times = tmpCascade[order]
+
+            cascadeList = []
+
+            for i in range(nodes):
+                if times[i] >= T: break
+                cascadeList.append(float(order[i]))
+                cascadeList.append(times[i])
+
+            cascade.append(cascadeList)
+
+        return np_topics, cascade

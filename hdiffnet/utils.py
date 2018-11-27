@@ -7,7 +7,7 @@ from sklearn.metrics import average_precision_score
 
 def transform_full_to_sparse(data):
     a = data.groupby('cascade_id')['node_id'].apply(list)
-    b = data.groupby('cascade_id')['hours_till_start'].apply(list)
+    b = data.groupby('cascade_id')['t'].apply(list)
     result = []
     for i in range(a.shape[0]):
         res = list(itertools.chain(*zip(a.iloc[i], b.iloc[i])))
@@ -19,11 +19,7 @@ def buildGraph(alpha):
     graph = nx.from_numpy_matrix(alpha)
     layout = nx.spring_layout(graph)
     weights = [graph[u][v]['weight'] * 5 / alpha.max() for u, v in
-               graph.edges()]    matchobj1 = re.search('://(.*?)/', str(x))
-    if matchobj1:
-        return matchobj1.group(1)
-    else:
-        return None
+               graph.edges()]
     labels = {node: str(node) for node in graph.nodes()}
 
     return graph, layout, weights, labels
