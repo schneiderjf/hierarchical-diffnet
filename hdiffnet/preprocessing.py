@@ -65,7 +65,8 @@ class Preprocessing():
         self.path = path
         self.data = pd.read_csv(path,
                                 delimiter='\t',
-                                skiprows=3)
+                                skiprows=3,
+                                nrows = 200000)
         self.labels = None
 
     def preprocess_data(self, num_nodes):
@@ -102,7 +103,7 @@ class Preprocessing():
         data['<Tm>'] = pd.to_datetime(data['<Tm>'])
         data['t'] = data.groupby('cascade_id')['<Tm>'].transform(
             lambda x: (x - min(x)))
-        data['t'] = data['diff'].apply(lambda x: x.total_seconds())
+        data['t'] = data['t'].apply(lambda x: x.total_seconds())
         data = data.drop(['<Url>', '<UrlTy>', '<Fq>', '<Tm>'],
                          axis=1)
         data = data.drop_duplicates(['cascade_id', 'node'])
