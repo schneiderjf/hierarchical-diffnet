@@ -1,8 +1,14 @@
 import networkx as nx
 import itertools
 import numpy as np
+import matplotlib.pyplot as plt
+import tensorflow as tf
 from scipy.stats import kendalltau
 from sklearn.metrics import average_precision_score
+import time
+from IPython import display
+from tensorflow_probability import edward2 as ed
+
 
 
 def transform_full_to_sparse(data):
@@ -26,14 +32,122 @@ def buildGraph(alpha):
 
 
 def drawEmptyGraph(graph, layout, labels):
-    nx.draw(graph, layout, edges=graph.edges, labels=labels,
-            font_color="white")
+    fig, ax = plt.subplots(figsize=(8, 7))
+
+    nx.draw_networkx_nodes(graph,
+                           layout,
+                           node_color='r',
+                           alpha=1,
+                           ax=ax)
+    nx.draw_networkx_labels(graph,
+                            layout,
+                            labels=labels, font_color="white", ax=ax)
+    ax.set_xticks([])
+    ax.set_yticks([])
 
 
 def drawWeightedGraph(graph, layout, weights, labels):
     nx.draw(graph, layout, edges=graph.edges, width=weights, labels=labels,
             font_color="white")
 
+
+def sampleCascade(alpha, T):
+    sess = tf.Session()
+    alpha_tf = tf.convert_to_tensor(alpha, dtype=tf.float32)
+    tau = ed.Exponential(alpha_tf)
+    cascade = sess.run(build_cascade(tau, 0, T))
+
+    return cascade
+
+
+def build_cascade(time, seed, T):
+    # Store number of nodes
+    n = time.shape[0]
+
+    # Transpose times and reduce minimum
+    times_T = tf.minimum(tf.transpose(time), T)
+
+    # Initialize transmission times to be max time except for seed node
+    transmission = tf.ones(n) * T
+    transmission = tf.subtract(transmission, tf.one_hot(seed, n) * T)
+
+    # Continually update transmissions
+    for _ in range(n):
+        # Tile transmission
+        transmission_tiled = tf.reshape(tf.tile(transmission, [n]), [n, n])
+
+        # Add transposed times and tiled transmissions
+        potential_transmission = tf.add(transmission_tiled, times_T)
+
+        # Find minimum path from all new
+        potential_transmission_row = tf.reduce_min(potential_transmission, reduction_indices=[1])
+
+        # Concatenate previous transmission and potential new transmission
+        potential_transmission_stack = tf.stack([transmission, potential_transmission_row], axis=0)
+
+        # Take the minimum of the original transmission and the potential new transmission
+        transmission = tf.reduce_min(potential_transmission_stack, reduction_indices=[0])
+
+    return transmission
+
+
+def printCascade(cascade, T):
+    print("node\t time")
+    print("----\t ----")
+
+    cascade_order = cascade.argsort().tolist()
+    i = 0
+
+    while i <= len(cascade_order) - 1 and cascade[cascade_order[i]] < T:
+        print('{:4d}\t {:0.2f}'.format(cascade_order[i], cascade[cascade_order[i]]))
+        i += 1
+
+
+def drawNetworkProp(graph, layout, labels, cascade, T):
+    cascade_order = cascade.argsort().tolist()
+
+    fig, ax = plt.subplots(figsize=(8, 7))
+
+    for num in range(len(graph.nodes)):
+        if cascade[cascade_order[num]] == T: break
+        time.sleep(1)
+
+        # Draw infected nodes
+        inf = nx.draw_networkx_nodes(graph,
+                                     layout,
+                                     node_color='r',
+                                     nodelist=cascade_order[:num + 1],
+                                     alpha=1,
+                                     ax=ax)
+
+        # Draw uninfected nodes
+        uninf = nx.draw_networkx_nodes(graph,
+                                       layout,
+                                       edge_color='b',
+                                       node_color='w',
+                                       nodelist=cascade_order[num + 1:],
+                                       alpha=1,
+                                       ax=ax)
+        try:
+            uninf.set_edgecolor("black")
+        except:
+            None
+
+        # Draw node
+        nx.draw_networkx_labels(graph,
+                                layout,
+                                labels=labels, font_color="white", ax=ax)
+
+        # Scale plot ax
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+        # Redraw cascade
+        display.clear_output(wait=True)
+        display.display(fig)
+
+    display.clear_output(wait=True)
+    return printCascade(cascade, T)
 
 def get_seed_set(r):
     results = []
