@@ -87,6 +87,91 @@ def f_psi_1(alpha_tensor, infected):
                                       tf.cast(infected,
                                               dtype=tf.float32)))
 
+def gamma_prior(alpha_tensor):
+    return tf.multiply(-tf.ones(alpha_tensor.shape),alpha_tensor)
+
+
+def f_psi_1_t(rate_intercept,
+            rate_affinity,
+            infected,
+            topic,
+            numNodes,
+            numTopics=2):
+    rate_affinity_rshp = tf.add(tf.reshape(rate_affinity, (numNodes * numNodes,
+                                                           numTopics)), .001)
+    topic_rshp = tf.reshape(topic, (numTopics, 1))
+    affinity = tf.reshape(tf.matmul(rate_affinity_rshp, topic_rshp),
+                          (numNodes, numNodes))
+
+    alpha_tensor = tf.add(tf.nn.relu(tf.add(rate_intercept, affinity)), .001)
+    return -tf.reduce_sum(
+        tf.multiply(alpha_tensor, tf.cast(infected, dtype=tf.float32)))
+
+
+def f_psi_2_t(rate_intercept,
+            rate_affinity,
+            uninfected,
+            topic,
+            numNodes,
+            numTopics=2):
+    rate_affinity_rshp = tf.add(tf.reshape(rate_affinity,
+                                           (numNodes * numNodes, numTopics)),
+                                .001)
+    topic_rshp = tf.reshape(topic, (numTopics, 1))
+    affinity = tf.reshape(tf.matmul(rate_affinity_rshp,
+                                    topic_rshp), (numNodes, numNodes))
+
+    alpha_tensor = tf.add(tf.nn.relu(tf.add(rate_intercept, affinity)), .001)
+
+    return -tf.reduce_sum(tf.multiply(tf.transpose(alpha_tensor),
+                                      tf.cast(uninfected, dtype=tf.float32)))
+
+
+def f_psi_3_t(rate_intercept,
+            rate_affinity,
+            infected,
+            topic,
+            numNodes,
+            numTopics=2):
+    rate_affinity_rshp = tf.add(tf.reshape(rate_affinity,
+                                           (numNodes * numNodes,
+                                            numTopics)), .001)
+    topic_rshp = tf.reshape(topic, (numTopics, 1))
+    alpha_tensor = tf.add(tf.nn.relu(tf.add(rate_intercept, tf.reshape(
+        tf.matmul(rate_affinity_rshp, topic_rshp),
+        (numNodes, numNodes)))), .001)
+
+    infected_sign = tf.cast(tf.sign(infected), tf.float32)
+
+    # Row sum infected
+    alpha_tensor_row = tf.reduce_sum(tf.multiply(infected_sign, alpha_tensor),
+                                     axis=1)
+
+    # Add 1 to 0 entries so log(1)=0
+    alpha_tensor_row_zeros = -tf.cast(tf.sign(alpha_tensor_row),
+                                      tf.float32) + 1
+
+    return tf.reduce_sum(
+        tf.log(tf.add(alpha_tensor_row, alpha_tensor_row_zeros)))
+
+
+def gamma_prior_t(rate_intercept, rate_affinity, theta_topics):
+    rate_affinity_rshp = tf.add(tf.reshape(rate_affinity, (100, 2)), .001)
+
+    return -tf.add(tf.nn.relu(rate_intercept + tf.reshape(
+        tf.matmul(rate_affinity_rshp, theta_topics), (10, 10))), .001)
+
+
+def evaluateAlpha(rate_intercept, rate_affinity, topic):
+    rate_affinity_rshp = tf.add(tf.reshape(rate_affinity, (100, 2)), .001)
+    topic_rshp = tf.convert_to_tensor(np.reshape(topic, (2, 1)),
+                                      dtype=tf.float32)
+    alpha_tensor = tf.add(tf.nn.relu(tf.add(rate_intercept, tf.reshape(
+        tf.matmul(rate_affinity_rshp, topic_rshp), (10, 10)))), .001)
+
+    negative_I = 1 - tf.eye(10)
+
+    return tf.multiply(alpha_tensor, negative_I)
 
 class ProbabilityModel():
     def __init__(self, data, numNodes, T):
@@ -96,7 +181,9 @@ class ProbabilityModel():
         self.numNodes = numNodes
         self.T = T
 
-    def map_estimate_BFGS(self, max_iter=1000):
+    def map_estimate_BFGS(self,
+                          max_iter=1000,
+                          initialize=True):
         sess = self.sess
         max_iter = max_iter
 
@@ -109,16 +196,18 @@ class ProbabilityModel():
         B = tf.Variable(tf.random_uniform(U.shape[1:]), dtype=tf.float32)
         alpha_tensor = tf.nn.sigmoid(B)
 
-        psi_1 = tf.map_fn(lambda x: f_psi_1(alpha_tensor, x), I_ph,
-                          dtype=tf.float32)
-        psi_2 = tf.map_fn(lambda x: f_psi_2(alpha_tensor, x), U_ph,
-                          dtype=tf.float32)
-        psi_3 = tf.map_fn(lambda x: f_psi_3(alpha_tensor, x), I_ph,
-                          dtype=tf.float32)
+        psi_1 = tf.map_fn(lambda x: f_psi_1(tf.transpose(alpha_tensor), x),
+                          I_ph, dtype=tf.float32)
+        psi_2 = tf.map_fn(lambda x: f_psi_2(tf.transpose(alpha_tensor), x),
+                          U_ph, dtype=tf.float32)
+        psi_3 = tf.map_fn(lambda x: f_psi_3(tf.transpose(alpha_tensor), x),
+                          I_ph, dtype=tf.float32)
+        prior = gamma_prior(alpha_tensor)
 
         log_p = -(tf.reduce_sum(psi_1) +
                   tf.reduce_sum(psi_2) +
-                  tf.reduce_sum(psi_3))
+                  tf.reduce_sum(psi_3) +
+                  tf.reduce_sum(prior))
 
         feed_dict = {U_ph: U.eval(session=sess),
                      I_ph: Inf.eval(session=sess)}
@@ -127,11 +216,73 @@ class ProbabilityModel():
             ScipyOptimizerInterface(log_p,
                                     method='L-BFGS-B',
                                     options={'maxiter': max_iter})
-
-        model = tf.global_variables_initializer()
+        if initialize:
+            model = tf.global_variables_initializer()
 
         sess.run(model)
         optimizer.minimize(sess, feed_dict=feed_dict)
 
         self.a = alpha_tensor.eval(session=sess)
         return self.a
+
+    def map_estimate_BFGS_topics(self,
+                                 max_iter=1000,
+                                 numTopics=2,
+                                 initialize=True):
+        sess = self.sess
+        max_iter = max_iter
+
+        theta_topics = tf.reshape(
+            tf.divide(tf.ones((1, numTopics)), numTopics), (numTopics, 1))
+
+        rate_intercept = tf.get_variable('rate_intercept',
+                                         initializer=tf.zeros_initializer,
+                                         shape=(self.numNodes,
+                                                self.numNodes))
+        rate_affinity = tf.get_variable('rate_affinity',
+                                        initializer=tf.zeros_initializer,
+                                        shape=(self.numNodes,
+                                               self.numNodes,
+                                               numTopics))
+        psi_1 = tf.map_fn(
+            lambda x: f_psi_1_t(rate_intercept, rate_affinity,
+                              x[0], x[1], self.numNodes, numTopics),
+            (I_ph, topics), dtype=tf.float32)
+
+        psi_2 = tf.map_fn(
+            lambda x: f_psi_2_t(rate_intercept, rate_affinity,
+                              x[0], x[1], self.numNodes, numTopics),
+            (U_ph, topics), dtype=tf.float32)
+
+        psi_3 = tf.map_fn(
+            lambda x: f_psi_3_t(rate_intercept, rate_affinity,
+                              x[0], x[1], self.numNodes, numTopics),
+            (I_ph, topics), dtype=tf.float32)
+
+        prior = gamma_prior_t(rate_intercept, rate_affinity, theta_topics)
+
+        log_p = -(tf.reduce_sum(psi_1) +
+                  tf.reduce_sum(psi_2) +
+                  tf.reduce_sum(psi_3) +
+                  tf.reduce_sum(prior))
+
+        feed_dict = {U_ph: U.eval(session=sess),
+                     I_ph: Inf.eval(session=sess)}
+
+        optimizer = tf.contrib.opt.\
+            ScipyOptimizerInterface(log_p,
+                                    method='L-BFGS-B',
+                                    options={'maxiter': max_iter})
+        if initialize:
+            model = tf.global_variables_initializer()
+
+        sess.run(model)
+        optimizer.minimize(sess, feed_dict=feed_dict)
+
+        self.a_t1 = evaluateAlpha(rate_intercept, rate_affinity,
+                                      np.array([1, 0])).eval(
+            session=sess).transpose().round(1)
+        self.a_t2 = evaluateAlpha(rate_intercept, rate_affinity,
+                                      np.array([0, 1])).eval(
+            session=sess).transpose().round(1)
+        return self.a_t1, self.a_t2
