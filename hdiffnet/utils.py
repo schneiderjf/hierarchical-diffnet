@@ -5,14 +5,18 @@ from scipy.stats import kendalltau
 from sklearn.metrics import average_precision_score
 
 
-def transform_full_to_sparse(data):
-    a = data.groupby('cascade_id')['node_id'].apply(list)
+def transform_full_to_sparse(data, topics=False):
+    a = data.groupby('cascade_id')['node'].apply(list)
     b = data.groupby('cascade_id')['t'].apply(list)
+    if topics:
+        topics = data.groupby('cascade_id')['polarity',
+                                            'polarity2'].mean().\
+            values.astype(np.float32)
     result = []
     for i in range(a.shape[0]):
         res = list(itertools.chain(*zip(a.iloc[i], b.iloc[i])))
         result.append(res)
-    return result
+    return result, topics
 
 
 def buildGraph(alpha):

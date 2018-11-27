@@ -14,12 +14,12 @@ class GenerativeModel():
 
     def build_cascade(self, seed, T=None, alpha=None):
 
-        sess = ed.get_session()
+        sess = tf.Session()
         # Store number of nodes
-        if not(T):
+        if T is None:
             T = self.T
 
-        if not(alpha):
+        if alpha is None:
             alpha = self.alpha
 
         time = ed.Exponential(alpha)
@@ -79,39 +79,33 @@ class GenerativeModel():
         cascades = np.vstack(result)
         return cascades
 
-    def build_topic_cascade(self, T, n):
-        """
+    def build_topic_cascades(self, seeds, T, topics):
 
-        :param T:
-        :param n: number of cascades to be drawn
-        :return:
-        """
+        sess = tf.Session()
+
         alpha = self.alpha
-        alpha_tf = tf.convert_to_tensor(alpha, dtype=tf.float32)
-        nodes = alpha.shape[1]
-
-        np_topics = np.zeros((n, 2))
+        nodes = alpha[1].shape[0]
 
         cascade = []
-        for i in tqdm(range(n)):
-            topic_pos = random.randint(0, 1)
-            np_topics[i, topic_pos] = 1
+        for i in tqdm(range(len(seeds))):
 
-            tau = ed.Exponential(tf.gather(alpha_tf, indices=topic_pos))
-            seed = random.randint(0, nodes - 1)
+            topic_pos = topics[i,0]
+            if topic_pos == 0:
+                tmpCascade = self.build_cascade(seeds[i], T[i], alpha[0])
 
-            tmpCascade = sess.run(build_cascade(tau, seed, T))
+            elif topic_pos == 1:
+                tmpCascade = self.build_cascade(seeds[i], T[i], alpha[1])
 
-            order = tmpCascade.argsort()
-            times = tmpCascade[order]
+            # order = tmpCascade.argsort()
+            # times = tmpCascade[order]
+            #
+            # cascadeList = []
+            #
+            # for i in range(nodes):
+            #     if times[i] >= T[i]: break
+            #     cascadeList.append(float(order[i]))
+            #     cascadeList.append(times[i])
 
-            cascadeList = []
+            cascade.append(tmpCascade)
 
-            for i in range(nodes):
-                if times[i] >= T: break
-                cascadeList.append(float(order[i]))
-                cascadeList.append(times[i])
-
-            cascade.append(cascadeList)
-
-        return np_topics, cascade
+        return np.array(cascade)

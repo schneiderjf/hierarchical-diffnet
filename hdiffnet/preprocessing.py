@@ -66,7 +66,7 @@ class Preprocessing():
         self.data = pd.read_csv(path,
                                 delimiter='\t',
                                 skiprows=3,
-                                nrows = 200000)
+                                nrows = 10000)
         self.labels = None
 
     def preprocess_data(self, num_nodes):
@@ -142,7 +142,7 @@ class Preprocessing():
         data = data[data.cluster_id.isin(clusters.index)]
         data['polarity'] = data.cluster_id.astype(str).replace(
             clusters.to_dict())
-        data.dropna()
+        data['polarity2'] = (data['polarity'] - 1) ** 2
 
         self.data = data
 
