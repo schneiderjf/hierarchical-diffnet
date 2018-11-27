@@ -1,0 +1,9 @@
+networkx
+itertools
+numpy
+pandas
+scipy
+sklearn
+tensorflow
+edward
+tqdm
