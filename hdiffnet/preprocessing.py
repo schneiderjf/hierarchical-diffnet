@@ -32,6 +32,7 @@ def get_cascade_id(a):
     else:
         return None
 
+
 def get_polarity(x):
     """
     :param x:
@@ -65,8 +66,7 @@ class Preprocessing():
         self.path = path
         self.data = pd.read_csv(path,
                                 delimiter='\t',
-                                skiprows=3,
-                                nrows = 10000)
+                                skiprows=3)
         self.labels = None
 
     def preprocess_data(self, num_nodes):
@@ -147,5 +147,3 @@ class Preprocessing():
         self.data = data
 
         return None
-
-

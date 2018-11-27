@@ -81,15 +81,12 @@ class GenerativeModel():
 
     def build_topic_cascades(self, seeds, T, topics):
 
-        sess = tf.Session()
-
         alpha = self.alpha
-        nodes = alpha[1].shape[0]
 
         cascade = []
         for i in tqdm(range(len(seeds))):
 
-            topic_pos = topics[i,0]
+            topic_pos = topics[i, 0]
             if topic_pos == 0:
                 tmpCascade = self.build_cascade(seeds[i], T[i], alpha[0])
 
