@@ -136,6 +136,13 @@ def drawNetworkProp(graph, layout, labels, cascade, T):
             break
         time.sleep(1)
 
+        nx.draw_networkx_nodes(graph,
+                               layout,
+                               node_color='r',
+                               nodelist=cascade_order[:num + 1],
+                               alpha=1,
+                               ax=ax)
+
         # Draw uninfected nodes
         uninf = nx.draw_networkx_nodes(graph,
                                        layout,
