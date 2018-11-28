@@ -253,8 +253,8 @@ class ProbabilityModel():
                                  initialize=True,
                                  batch_size=None):
         topics = self.topics
-
         sess = self.sess
+
         max_iter = max_iter
 
         if initialize:
@@ -266,6 +266,7 @@ class ProbabilityModel():
         if batch_size is None:
             Inf = genInfectedTensor(self.data, self.numNodes, self.T)
             U = genUninfectedTensor(self.data, self.numNodes, self.T)
+
         else:
             Inf = genInfectedTensor(self.data[self.batch:self.batch +
                                     batch_size],
@@ -278,15 +279,20 @@ class ProbabilityModel():
         U_ph = tf.placeholder(tf.float32, U.shape)
         I_ph = tf.placeholder(tf.float32, Inf.shape)
 
-        rate_intercept = tf.get_variable('rate_intercept',
-                                         initializer=tf.zeros_initializer,
-                                         shape=(self.numNodes,
-                                                self.numNodes))
-        rate_affinity = tf.get_variable('rate_affinity',
-                                        initializer=tf.zeros_initializer,
-                                        shape=(self.numNodes,
-                                               self.numNodes,
-                                               numTopics))
+        rate_intercept = tf.Variable(tf.random_uniform((self.numNodes,
+                                                        self.numNodes)),
+                                     dtype=tf.float32)
+        rate_affinity = tf.Variable(tf.random_uniform((self.numNodes,
+                                                       self.numNodes,
+                                                       numTopics)),
+                                     dtype=tf.float32)
+        #rate_intercept = tf.Variable(tf.zeros(self.numNodes,self.numNodes),
+        #                             dtype=tf.float32)
+        #rate_affinity = tf.get_variable('rate_affinity',
+        #                                initializer=tf.zeros_initializer,
+        #                                shape=(self.numNodes,
+        #                                       self.numNodes,
+        #                                       numTopics))
         psi_1 = tf.map_fn(
             lambda x: f_psi_1_t(rate_intercept, rate_affinity,
                                 x[0], x[1], self.numNodes, numTopics),
