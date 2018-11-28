@@ -2,7 +2,7 @@ import pandas as pd
 import re
 
 
-# Define functions
+# Define Helper functions
 def get_nodename(x):
     matchobj1 = re.search('://(.*?)/', str(x))
     if matchobj1:
@@ -35,6 +35,7 @@ def get_cascade_id(a):
 
 def get_polarity(x):
     """
+    For a cascade word cloud, it will retrieve its topic in a heuristic way
     :param x:
     :return:
     """
@@ -118,6 +119,10 @@ class Preprocessing():
         return None
 
     def add_polarity(self):
+        """
+        adds polarity data to each cascade id, by using a heuristic appraoch
+        :return:
+        """
         data = pd.read_csv(self.path,
                            delimiter='\t', skiprows=3)
         v = self.cascade_ids

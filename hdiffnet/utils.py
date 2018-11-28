@@ -2,16 +2,19 @@ import networkx as nx
 import itertools
 import numpy as np
 import matplotlib.pyplot as plt
-import tensorflow as tf
 from scipy.stats import kendalltau
 from sklearn.metrics import average_precision_score
 import time
 from IPython import display
-from tensorflow_probability import edward2 as ed
-
 
 
 def transform_full_to_sparse(data, topics=False):
+    """
+    transforms a matrix cascades into a sparse cascade format
+    :param data: pd.dataframe | from the preprocessing class
+    :param topics: bool | indicates whether a topic vector should
+    :return: list of list, np.array
+    """
     a = data.groupby('cascade_id')['node'].apply(list)
     b = data.groupby('cascade_id')['t'].apply(list)
     if topics:
@@ -26,7 +29,12 @@ def transform_full_to_sparse(data, topics=False):
 
 
 def buildGraph(alpha=None):
-    if alpha==None:
+    """
+    Generate graphs
+    :param alpha:
+    :return:
+    """
+    if alpha is None:
         alpha = defaultAlpha()
 
     graph = nx.from_numpy_matrix(alpha)
@@ -39,6 +47,13 @@ def buildGraph(alpha=None):
 
 
 def drawEmptyGraph(graph, layout, labels):
+    """
+    generate graphs
+    :param graph:
+    :param layout:
+    :param labels:
+    :return:
+    """
     fig, ax = plt.subplots(figsize=(8, 7))
 
     nx.draw_networkx_nodes(graph,
@@ -54,10 +69,23 @@ def drawEmptyGraph(graph, layout, labels):
 
 
 def drawWeightedGraph(graph, layout, weights, labels):
+    """
+    generate graphs
+    :param graph:
+    :param layout:
+    :param weights:
+    :param labels:
+    :return:
+    """
     nx.draw(graph, layout, edges=graph.edges, width=weights, labels=labels,
             font_color="white")
 
+
 def defaultAlpha():
+    """
+    generate graphs
+    :return:
+    """
     return np.array([[0, .1, 0, 0, 0, .2, 0, 0, 0, 0],
                      [0, 0, .5, 0, 0, 0, 0, .25, 0, 0],
                      [0, 0, 0, .4, 0, 0, 0, 0, 0, 0],
@@ -69,49 +97,14 @@ def defaultAlpha():
                      [0, 0, 0, 0, 0, 0, 0, 0, 0, .3],
                      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]], dtype=np.float32)
 
-def sampleCascade(alpha, T):
-    sess = tf.Session()
-    alpha_tf = tf.convert_to_tensor(alpha, dtype=tf.float32)
-    tau = ed.Exponential(alpha_tf)
-    cascade = sess.run(build_cascade(tau, 0, T))
-
-    return cascade
-
-
-def build_cascade(time, seed, T):
-    # Store number of nodes
-    n = time.shape[0]
-
-    # Transpose times and reduce minimum
-    times_T = tf.minimum(tf.transpose(time), T)
-
-    # Initialize transmission times to be max time except for seed node
-    transmission = tf.ones(n) * T
-    transmission = tf.subtract(transmission, tf.one_hot(seed, n) * T)
-
-    # Continually update transmissions
-    for _ in range(n):
-        # Tile transmission
-        transmission_tiled = tf.reshape(tf.tile(transmission, [n]), [n, n])
-
-        # Add transposed times and tiled transmissions
-        potential_transmission = tf.add(transmission_tiled, times_T)
-
-        # Find minimum path from all new
-        potential_transmission_row = tf.reduce_min(potential_transmission,
-                                                   reduction_indices=[1])
-
-        # Concatenate previous transmission and potential new transmission
-        potential_transmission_stack = tf.stack([transmission,
-                                                 potential_transmission_row], axis=0)
-
-        # Take the minimum of the original transmission and the potential new transmission
-        transmission = tf.reduce_min(potential_transmission_stack, reduction_indices=[0])
-
-    return transmission
-
 
 def printCascade(cascade, T):
+    """
+    print a cascade
+    :param cascade:
+    :param T:
+    :return:
+    """
     print("node\t time")
     print("----\t ----")
 
@@ -119,26 +112,29 @@ def printCascade(cascade, T):
     i = 0
 
     while i <= len(cascade_order) - 1 and cascade[cascade_order[i]] < T:
-        print('{:4d}\t {:0.2f}'.format(cascade_order[i], cascade[cascade_order[i]]))
+        print('{:4d}\t {:0.2f}'.format(cascade_order[i],
+                                       cascade[cascade_order[i]]))
         i += 1
 
 
 def drawNetworkProp(graph, layout, labels, cascade, T):
+    """
+    generate graphs
+    :param graph:
+    :param layout:
+    :param labels:
+    :param cascade:
+    :param T:
+    :return:
+    """
     cascade_order = cascade.argsort().tolist()
 
     fig, ax = plt.subplots(figsize=(8, 7))
 
     for num in range(len(graph.nodes)):
-        if cascade[cascade_order[num]] == T: break
+        if cascade[cascade_order[num]] == T:
+            break
         time.sleep(1)
-
-        # Draw infected nodes
-        inf = nx.draw_networkx_nodes(graph,
-                                     layout,
-                                     node_color='r',
-                                     nodelist=cascade_order[:num + 1],
-                                     alpha=1,
-                                     ax=ax)
 
         # Draw uninfected nodes
         uninf = nx.draw_networkx_nodes(graph,
@@ -148,10 +144,8 @@ def drawNetworkProp(graph, layout, labels, cascade, T):
                                        nodelist=cascade_order[num + 1:],
                                        alpha=1,
                                        ax=ax)
-        try:
+        if uninf is not None:
             uninf.set_edgecolor("black")
-        except:
-            None
 
         # Draw node
         nx.draw_networkx_labels(graph,
@@ -168,6 +162,7 @@ def drawNetworkProp(graph, layout, labels, cascade, T):
 
     display.clear_output(wait=True)
     return printCascade(cascade, T)
+
 
 def get_seed_set(r):
     results = []
@@ -198,6 +193,17 @@ def convert_to_matrix(v, numNodes, maxT):
 
 
 def evaluate(test_set, test_cascades, benchmark_cascades, times):
+    """
+    evaluates several metrcis between the test cascades and the model generated
+    cascades as well as a benchmark model generated set of cascades. Times indi
+    cates the time horizon for each cascade. All arrays have to be same shaped
+    (except the time array)
+    :param test_set: np.array
+    :param test_cascades: np.array
+    :param benchmark_cascades: np.array
+    :param times: np.array
+    :return: None
+    """
     mse1 = np.mean((test_set - test_cascades) ** 2)
     mse2 = np.mean((test_set - benchmark_cascades) ** 2)
     mae1 = np.mean(np.absolute(test_set - test_cascades))
@@ -235,7 +241,7 @@ def evaluate(test_set, test_cascades, benchmark_cascades, times):
     print("MAE\t model  \t" + str(round(mae1)))
     print("KRCC \t benchmark\t" + str(round(kendall2, 3)))
     print("KRCC \t model  \t" + str(round(kendall1, 3)))
-    print("Prec\t benchmark\t" + str(round(prec2,3)))
-    print("Prec\t model  \t" + str(round(prec1,3)))
+    print("Prec\t benchmark\t" + str(round(prec2, 3)))
+    print("Prec\t model  \t" + str(round(prec1, 3)))
 
     return None

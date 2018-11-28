@@ -3,16 +3,25 @@ import numpy as np
 
 from tensorflow_probability import edward2 as ed
 
-from tqdm import tqdm_notebook
-
 
 class GenerativeModel():
+    """
+    This class defines the generative model for the graphical model
+    """
     def __init__(self, alpha, T=None):
         self.alpha = alpha
         self.T = T
         pass
 
     def build_cascade(self, seed, T=None, alpha=None):
+        """
+        This function generates a cascades given a seed node, a time horizon
+        and a parameter matrix.
+        :param seed: int | seed node parameter
+        :param T: float
+        :param alpha: np.array
+        :return: np.array | cascade
+        """
 
         sess = tf.Session()
         # Store number of nodes
@@ -61,18 +70,19 @@ class GenerativeModel():
 
     def build_cascade_series(self, seeds, T=None):
         """
-
-        :param seeds:
-        :param T:
-        :return:
+        Builds a list of cascades, when feeded with a list of seed nodes and
+        times, seed list and T list must have the same lenght
+        :param seeds: list
+        :param T: list
+        :return: np.array | an array of cascades
         """
         result = []
         if T:
-            for t in tqdm_notebook(range(len(seeds))):
+            for t in range(len(seeds)):
                 cascade = self.build_cascade(seeds[t], T[t])
                 result.append(cascade)
         else:
-            for t in tqdm_notebook(range(len(seeds))):
+            for t in range(len(seeds)):
                 cascade = self.build_cascade(seeds[t])
                 result.append(cascade)
 
@@ -80,11 +90,20 @@ class GenerativeModel():
         return cascades
 
     def build_topic_cascades(self, seeds, T, topics):
+        """
+        Builds a set of cascades, given a topic polarity. The number of
+        cascades are determined by the lenght of T and seeds
+        :param seeds: list
+        :param T: list
+        :param topics: np.array | indicator matrix for topic per seed
+        :return: np.array | cascades
+        """
 
         alpha = self.alpha
 
         cascade = []
-        for i in tqdm_notebook(range(len(seeds))):
+
+        for i in range(len(seeds)):
 
             topic_pos = topics[i, 0]
             if topic_pos == 0:
@@ -92,16 +111,6 @@ class GenerativeModel():
 
             elif topic_pos == 1:
                 tmpCascade = self.build_cascade(seeds[i], T[i], alpha[1])
-
-            # order = tmpCascade.argsort()
-            # times = tmpCascade[order]
-            #
-            # cascadeList = []
-            #
-            # for i in range(nodes):
-            #     if times[i] >= T[i]: break
-            #     cascadeList.append(float(order[i]))
-            #     cascadeList.append(times[i])
 
             cascade.append(tmpCascade)
 

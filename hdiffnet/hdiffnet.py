@@ -181,7 +181,17 @@ def evaluateAlpha(rate_intercept, rate_affinity, topic, numNodes, numTopics):
 
 
 class ProbabilityModel():
+    """
+    The main class for the log-probability model
+    """
     def __init__(self, data, numNodes, T, topics=None):
+        """
+
+        :param data: a list of list | for the cascades
+        :param numNodes: int | the number of nodes in the graph
+        :param T: np.array | the time horizon
+        :param topics: np.array
+        """
         self.data = data
         self.sess = tf.Session()
         self.a = None
@@ -193,6 +203,14 @@ class ProbabilityModel():
                           max_iter=1000,
                           initialize=True,
                           batch_size=None):
+        """
+        Runs BFGS on the data
+        :param max_iter: int | number of max iterations for BFGS
+        :param initialize: bool | set to True if alpha values should be
+        initialized
+        :param batch_size: int | needed for batch update
+        :return: alpha
+        """
         sess = self.sess
         max_iter = max_iter
         if initialize:
@@ -252,6 +270,14 @@ class ProbabilityModel():
                                  numTopics=2,
                                  initialize=True,
                                  batch_size=None):
+        """
+        Runs BFGS on the data and including the topic information
+        :param max_iter: int | number of max iterations for BFGS
+        :param initialize: bool | set to True if alpha values should be
+        initialized
+        :param batch_size: int | needed for batch update
+        :return: alpha
+        """
         topics = self.topics
         sess = self.sess
 
@@ -285,14 +311,8 @@ class ProbabilityModel():
         rate_affinity = tf.Variable(tf.random_uniform((self.numNodes,
                                                        self.numNodes,
                                                        numTopics)),
-                                     dtype=tf.float32)
-        #rate_intercept = tf.Variable(tf.zeros(self.numNodes,self.numNodes),
-        #                             dtype=tf.float32)
-        #rate_affinity = tf.get_variable('rate_affinity',
-        #                                initializer=tf.zeros_initializer,
-        #                                shape=(self.numNodes,
-        #                                       self.numNodes,
-        #                                       numTopics))
+                                    dtype=tf.float32)
+
         psi_1 = tf.map_fn(
             lambda x: f_psi_1_t(rate_intercept, rate_affinity,
                                 x[0], x[1], self.numNodes, numTopics),
@@ -340,6 +360,11 @@ class ProbabilityModel():
         return self.a_t1, self.a_t2
 
     def batch_update(self, batch_size=100):
+        """
+        if called is updating the log-probability batchwise
+        :param batch_size:
+        :return: alpha
+        """
 
         a = self.map_estimate_BFGS(max_iter=1000, initialize=True,
                                    batch_size=100)
