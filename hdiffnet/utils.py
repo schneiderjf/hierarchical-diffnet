@@ -216,12 +216,12 @@ def evaluate(test_set, test_cascades, benchmark_cascades, times):
     print("metric\t set\t \t value")
     print("_______|_____________|______________________")
     print("MSE\t benchmark\t" + str(round(mse2)))
-    print("MSE\t holdout\t" + str(round(mse1)))
+    print("MSE\t model  \t" + str(round(mse1)))
     print("MAE\t benchmark\t" + str(round(mae2)))
-    print("MAE\t holdout\t" + str(round(mae1)))
+    print("MAE\t model  \t" + str(round(mae1)))
     print("KRCC \t benchmark\t" + str(round(kendall2, 3)))
-    print("KRCC \t holdout\t" + str(round(kendall1, 3)))
-    print("Prec\t benchmark\t" + str(round(prec2)))
-    print("Prec\t holdout\t" + str(round(prec1)))
+    print("KRCC \t model  \t" + str(round(kendall1, 3)))
+    print("Prec\t benchmark\t" + str(round(prec2,3)))
+    print("Prec\t model  \t" + str(round(prec1,3)))
 
     return None

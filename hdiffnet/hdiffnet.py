@@ -203,10 +203,10 @@ class ProbabilityModel():
             U = genUninfectedTensor(self.data, self.numNodes, self.T)
         else:
             Inf = genInfectedTensor(self.data[self.batch:self.batch +
-                                                         batch_size],
+                                    batch_size],
                                     self.numNodes, self.T)
             U = genUninfectedTensor(self.data[self.batch:self.batch +
-                                                         batch_size],
+                                    batch_size],
                                     self.numNodes, self.T)
             self.batch += batch_size
 
@@ -263,15 +263,15 @@ class ProbabilityModel():
         theta_topics = tf.reshape(
             tf.divide(tf.ones((1, numTopics)), numTopics), (numTopics, 1))
 
-        if batch_size == None:
+        if batch_size is None:
             Inf = genInfectedTensor(self.data, self.numNodes, self.T)
             U = genUninfectedTensor(self.data, self.numNodes, self.T)
         else:
             Inf = genInfectedTensor(self.data[self.batch:self.batch +
-                                                         batch_size],
+                                    batch_size],
                                     self.numNodes, self.T)
             U = genUninfectedTensor(self.data[self.batch:self.batch +
-                                                         batch_size],
+                                    batch_size],
                                     self.numNodes, self.T)
             self.batch += batch_size
 
@@ -335,11 +335,9 @@ class ProbabilityModel():
 
     def batch_update(self, batch_size=100):
 
-        a = self.map_estimate_BFGS(max_iter=1000, initialize=True, batch_size=100)
+        a = self.map_estimate_BFGS(max_iter=1000, initialize=True,
+                                   batch_size=100)
         for i in range(len(self.data) // batch_size - 1):
             a = self.map_estimate_BFGS(max_iter=1000, batch_size=100)
 
         return a
-
-
-

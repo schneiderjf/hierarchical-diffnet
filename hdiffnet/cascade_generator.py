@@ -3,7 +3,7 @@ import numpy as np
 
 from tensorflow_probability import edward2 as ed
 
-from tqdm import tqdm
+from tqdm import tqdm_notebook
 
 
 class GenerativeModel():
@@ -68,11 +68,11 @@ class GenerativeModel():
         """
         result = []
         if T:
-            for t in tqdm(range(len(seeds))):
+            for t in tqdm_notebook(range(len(seeds))):
                 cascade = self.build_cascade(seeds[t], T[t])
                 result.append(cascade)
         else:
-            for t in tqdm(range(len(seeds))):
+            for t in tqdm_notebook(range(len(seeds))):
                 cascade = self.build_cascade(seeds[t])
                 result.append(cascade)
 
@@ -84,7 +84,7 @@ class GenerativeModel():
         alpha = self.alpha
 
         cascade = []
-        for i in tqdm(range(len(seeds))):
+        for i in tqdm_notebook(range(len(seeds))):
 
             topic_pos = topics[i, 0]
             if topic_pos == 0:
