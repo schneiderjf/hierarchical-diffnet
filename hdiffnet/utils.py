@@ -84,10 +84,12 @@ def build_cascade(time, seed, T):
         potential_transmission = tf.add(transmission_tiled, times_T)
 
         # Find minimum path from all new
-        potential_transmission_row = tf.reduce_min(potential_transmission, reduction_indices=[1])
+        potential_transmission_row = tf.reduce_min(potential_transmission,
+                                                   reduction_indices=[1])
 
         # Concatenate previous transmission and potential new transmission
-        potential_transmission_stack = tf.stack([transmission, potential_transmission_row], axis=0)
+        potential_transmission_stack = tf.stack([transmission,
+                                                 potential_transmission_row], axis=0)
 
         # Take the minimum of the original transmission and the potential new transmission
         transmission = tf.reduce_min(potential_transmission_stack, reduction_indices=[0])
