@@ -25,7 +25,10 @@ def transform_full_to_sparse(data, topics=False):
     return result, topics
 
 
-def buildGraph(alpha):
+def buildGraph(alpha=None):
+    if alpha==None:
+        alpha = defaultAlpha()
+
     graph = nx.from_numpy_matrix(alpha)
     layout = nx.spring_layout(graph)
     weights = [graph[u][v]['weight'] * 5 / alpha.max() for u, v in
@@ -54,6 +57,17 @@ def drawWeightedGraph(graph, layout, weights, labels):
     nx.draw(graph, layout, edges=graph.edges, width=weights, labels=labels,
             font_color="white")
 
+def defaultAlpha():
+    return np.array([[0, .1, 0, 0, 0, .2, 0, 0, 0, 0],
+                     [0, 0, .5, 0, 0, 0, 0, .25, 0, 0],
+                     [0, 0, 0, .4, 0, 0, 0, 0, 0, 0],
+                     [0, 0, 0, 0, .5, 0, 0, .1, 0, 0],
+                     [0, 0, 0, 0, 0, .3, 0, 0, .2, 0],
+                     [0, 0, 0, 0, 0, 0, .7, 0, 0, 0],
+                     [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+                     [0, 0, 0, 0, 0, 0, 0, 0, .6, 0],
+                     [0, 0, 0, 0, 0, 0, 0, 0, 0, .3],
+                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]], dtype=np.float32)
 
 def sampleCascade(alpha, T):
     sess = tf.Session()
